@@ -119,9 +119,10 @@ static int meta_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * co
     Tcl_WrongNumArgs(interp, 1, argv, "subcommand ...");
     return TCL_ERROR;
   }
+
   if (!strcmp(Tcl_GetString(argv[1]), "info")) {
-    if (argc != 3) {
-      Tcl_WrongNumArgs(interp, 2, argv, "namespace");
+    if (argc != 3 && argc != 4) {
+      Tcl_WrongNumArgs(interp, 2, argv, "namespace ?symbol?");
       return TCL_ERROR;
     }
     const char * namespace = Tcl_GetString(argv[2]);
@@ -136,21 +137,34 @@ static int meta_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * co
 	    namespace));
       return TCL_ERROR;
     }
-    printf("namespace: <%s>\n", namespace);
-    int n = g_irepository_get_n_infos(NULL, namespace);
-    if (n < 0) {
-      Tcl_SetResult(interp, "g_irepository_get_n_infos < 0.", TCL_STATIC);
-      return TCL_ERROR;
-    }
-    Tcl_Obj * res = Tcl_NewListObj(0, NULL);
-    for (int i = 0; i < n; i++) {
-      GIBaseInfo * info = g_irepository_get_info(NULL, namespace, i);
-      const char * name = g_base_info_get_name(info);
-      Tcl_ListObjAppendElement(interp, res, Tcl_NewStringObj(name, -1));
-      g_base_info_unref(info);
+    Tcl_Obj * res;
+    if (argc == 3) {
+      int n = g_irepository_get_n_infos(NULL, namespace);
+      if (n < 0) {
+	Tcl_SetResult(interp, "g_irepository_get_n_infos < 0.", TCL_STATIC);
+	return TCL_ERROR;
+      }
+      res = Tcl_NewListObj(0, NULL);
+      for (int i = 0; i < n; i++) {
+	GIBaseInfo * info = g_irepository_get_info(NULL, namespace, i);
+	const char * name = g_base_info_get_name(info);
+	Tcl_ListObjAppendElement(interp, res, Tcl_NewStringObj(name, -1));
+	g_base_info_unref(info);
+      }
+    } else {
+      const char * name = Tcl_GetString(argv[3]);
+      GIBaseInfo * info = g_irepository_find_by_name(NULL, namespace, name);
+      if (!info) {
+	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+	      "symbol \"%s\" not found in namespace \"%s\"",
+	      name, namespace));
+	return TCL_ERROR;
+      }
+      res = get_metainfo(interp, info);
     }
     Tcl_SetObjResult(interp, res);
     return TCL_OK;
+
   } else if (!strcmp(Tcl_GetString(argv[1]), "namespaces")) {
     if (argc != 2) {
       Tcl_WrongNumArgs(interp, 2, argv, NULL);
@@ -200,6 +214,7 @@ int Gitcl_Init(Tcl_Interp * interp) {
   INIT_TCL_STRING(arg);
   INIT_TCL_STRING(type);
   INIT_TCL_STRING(unresolved);
+  INIT_TCL_STRING(attributes);
   require_cmd_ref = Tcl_CreateObjCommand(interp, "::gitcl::require", &require_cmd, NULL, NULL);
   if (!require_cmd_ref) return TCL_ERROR;
   meta_cmd_ref = Tcl_CreateObjCommand(interp, "::gitcl::meta", &meta_cmd, NULL, NULL);
