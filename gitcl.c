@@ -10,7 +10,8 @@ static Tcl_Obj *str_name, *str_invalid, *str_function, *str_callback,
 	       *str_struct, *str_boxed, *str_enum, *str_flags, *str_object,
 	       *str_interface, *str_constant, *str_union, *str_value,
 	       *str_signal, *str_vfunc, *str_property, *str_field, *str_arg,
-	       *str_type, *str_unresolved, *str_attributes;
+	       *str_type, *str_unresolved, *str_attributes, *str_container,
+	       *str_deprecated, *bool_true, *bool_false;
 
 int require_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * const argv[]) {
   if (argc != 2 && argc != 3) {
@@ -110,6 +111,18 @@ static Tcl_Obj * get_metainfo(Tcl_Interp * interp, GIBaseInfo * info) {
       Tcl_DictObjPut(interp, attributes, Tcl_NewStringObj(name, -1), Tcl_NewStringObj(value, -1));
     }
     Tcl_DictObjPut(interp, res, str_attributes, attributes);
+  }
+  // container:
+  {
+    GIBaseInfo * container_info = g_base_info_get_container(info);
+    if (container_info) {
+      Tcl_DictObjPut(interp, res, str_container,
+	  Tcl_NewStringObj(g_base_info_get_name(container_info), -1));
+    }
+  }
+  // deprecated:
+  if (g_base_info_is_deprecated(info)) {
+    Tcl_DictObjPut(interp, res, str_deprecated, bool_true);
   }
   return res;
 }
@@ -215,6 +228,10 @@ int Gitcl_Init(Tcl_Interp * interp) {
   INIT_TCL_STRING(type);
   INIT_TCL_STRING(unresolved);
   INIT_TCL_STRING(attributes);
+  INIT_TCL_STRING(container);
+  INIT_TCL_STRING(deprecated);
+  Tcl_IncrRefCount(bool_true = Tcl_NewBooleanObj(1));
+  Tcl_IncrRefCount(bool_false = Tcl_NewBooleanObj(0));
   require_cmd_ref = Tcl_CreateObjCommand(interp, "::gitcl::require", &require_cmd, NULL, NULL);
   if (!require_cmd_ref) return TCL_ERROR;
   meta_cmd_ref = Tcl_CreateObjCommand(interp, "::gitcl::meta", &meta_cmd, NULL, NULL);

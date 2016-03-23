@@ -79,3 +79,10 @@ test "types in Gtk included stuff match" {
     }
   }
 }
+test "some symbols in Gtk are deprecated" {
+  set depr {}
+  foreach name [gitcl::meta info Gtk] {
+    dict incr depr [dict exists [gitcl::meta info Gtk $name] deprecated]
+  }
+  assert "$depr" {[dict get $depr 0] > 0 && [dict get $depr 1] > 0}
+}
