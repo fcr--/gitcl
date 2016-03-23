@@ -190,7 +190,7 @@ static int meta_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * co
   return TCL_OK;
 }
 
-#define INIT_TCL_STRING(name) str_##name = Tcl_NewStringObj(#name, -1)
+#define INIT_TCL_STRING(name) str_##name = Tcl_NewStringObj(#name, -1); Tcl_IncrRefCount(str_##name)
 
 int Gitcl_Init(Tcl_Interp * interp) {
   if (!Tcl_CreateNamespace(interp, "gitcl", NULL, NULL)) return TCL_ERROR;
