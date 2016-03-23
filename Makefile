@@ -24,5 +24,10 @@ libgitcl.so: gitcl.o
 %.o: %.c
 	$(CC) -c $< -o $@ $(CFLAGS)
 
+.PHONY: clean test
+
 clean:
 	rm -f libgitcl.so gitcl.o
+
+test tests:
+	./test.tcl
