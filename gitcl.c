@@ -1,7 +1,11 @@
+#define _GNU_SOURCE
+
 #include <girepository.h>
 #include <stdlib.h>
 #include <string.h>
 #include "tcl.h"
+
+#include "enum.h"
 
 static Tcl_Command require_cmd_ref = NULL,
 		   meta_cmd_ref = NULL;
@@ -13,7 +17,7 @@ static Tcl_Obj *str_name, *str_invalid, *str_function, *str_callback,
 	       *str_type, *str_unresolved, *str_attributes, *str_container,
 	       *str_deprecated, *bool_true, *bool_false;
 
-int require_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * const argv[]) {
+static int require_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * const argv[]) {
   if (argc != 2 && argc != 3) {
     Tcl_WrongNumArgs(interp, 1, argv, "namespace ?version?");
     return TCL_ERROR;
@@ -29,6 +33,32 @@ int require_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * const 
 	Tcl_ObjPrintf("unspecified error on require \"%s\"", namespace));
     return TCL_ERROR;
   }
+  char * full_namespace = NULL;
+  asprintf(&full_namespace, "::gitcl::%s", namespace);
+  if (!full_namespace) {
+    Tcl_SetResult(interp, "internal error: asprintf failed", TCL_STATIC);
+    return TCL_ERROR;
+  }
+  if (Tcl_CreateNamespace(interp, full_namespace, NULL, NULL)) {
+    // register each symbol:
+    int n = g_irepository_get_n_infos(NULL, namespace);
+    if (n < 0) {
+      Tcl_SetResult(interp, "g_irepository_get_n_infos < 0.", TCL_STATIC);
+      free(full_namespace);
+      return TCL_ERROR;
+    }
+    for (int i = 0; i < n; i++) {
+      GIBaseInfo * info = g_irepository_get_info(NULL, namespace, i);
+      if (GI_IS_ENUM_INFO(info)) {
+	gitcl_enum_register(interp, full_namespace, (GIEnumInfo*)info);
+      } else {
+	fprintf(stderr, "warning: info specialization for %s unsupported\n",
+	    g_base_info_get_name(info));
+      }
+      g_base_info_unref(info);
+    }
+  }
+  free(full_namespace);
   return TCL_OK;
 }
 
@@ -206,7 +236,7 @@ static int meta_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * co
 #define INIT_TCL_STRING(name) str_##name = Tcl_NewStringObj(#name, -1); Tcl_IncrRefCount(str_##name)
 
 int Gitcl_Init(Tcl_Interp * interp) {
-  if (!Tcl_CreateNamespace(interp, "gitcl", NULL, NULL)) return TCL_ERROR;
+  if (!Tcl_CreateNamespace(interp, "::gitcl", NULL, NULL)) return TCL_ERROR;
   INIT_TCL_STRING(name);
   INIT_TCL_STRING(invalid);
   INIT_TCL_STRING(function);

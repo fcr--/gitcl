@@ -18,7 +18,7 @@ CFLAGS += $(call shellvar,$(TCLCONFIG),TCL_INCLUDE_SPEC)
 
 all: libgitcl.so
 
-libgitcl.so: gitcl.o
+libgitcl.so: gitcl.o enum.o
 	$(CC) $^ -o $@ $(LIBS) $(LDFLAGS) -shared
 
 %.o: %.c
@@ -27,7 +27,7 @@ libgitcl.so: gitcl.o
 .PHONY: clean test
 
 clean:
-	rm -f libgitcl.so gitcl.o
+	rm -f *.so *.o
 
 test tests:
 	./test.tcl
