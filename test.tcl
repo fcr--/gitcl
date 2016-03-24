@@ -86,3 +86,7 @@ test "some symbols in Gtk are deprecated" {
   }
   assert "$depr" {[dict get $depr 0] > 0 && [dict get $depr 1] > 0}
 }
+test "enums are registered and readable" {
+  assert {"::gitcl::Gtk::ToolbarStyle" in [namespace children ::gitcl::Gtk]}
+  assert {$::gitcl::Gtk::ToolbarStyle::both == 2}
+}

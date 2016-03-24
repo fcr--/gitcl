@@ -51,9 +51,11 @@ static int require_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj *
       GIBaseInfo * info = g_irepository_get_info(NULL, namespace, i);
       if (GI_IS_ENUM_INFO(info)) {
 	gitcl_enum_register(interp, full_namespace, (GIEnumInfo*)info);
+#ifdef DEBUG
       } else {
 	fprintf(stderr, "warning: info specialization for %s unsupported\n",
 	    g_base_info_get_name(info));
+#endif
       }
       g_base_info_unref(info);
     }
