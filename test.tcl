@@ -37,32 +37,39 @@ test "no dependency is loaded at load time" {
 test "require Gtk" {
   gitcl::require Gtk
 }
+
 test "Gtk is loaded" {
   assert {"Gtk" in [gitcl::meta namespaces]}
 }
+
 test "GObject is loaded as well" {
   assert {"GObject" in [gitcl::meta namespaces]}
 }
+
 test "nothing breaks if we require Gtk again" {
   set namespaces [gitcl::meta namespaces]
   gitcl::require Gtk
   assert {[lsort $namespaces] == [lsort [gitcl::meta namespaces]]}
 }
+
 test "nothing breaks if we require an already loaded dependency (GObject)" {
   set namespaces [gitcl::meta namespaces]
   gitcl::require GObject
   assert {[lsort $namespaces] == [lsort [gitcl::meta namespaces]]}
 }
+
 test "meta info pelota fails" {
   assert {[catch {gitcl::meta info pelota} res]}
   assert {[string match {*pelota*not loaded*} $res]}
 }
+
 test "some basic stuff included in Gtk" {
   set symbols [gitcl::meta info Gtk]
   foreach symbol {Button Widget Window init main main_quit} {
     assert "$symbol" {$symbol in $symbols}
   }
 }
+
 test "types in Gtk included stuff match" {
   foreach {symbol type} {
     main           function
@@ -79,6 +86,18 @@ test "types in Gtk included stuff match" {
     }
   }
 }
+
+test "enum values are shown in meta info" {
+  set values [dict get [gitcl::meta info Gtk ToolbarStyle] values]
+  foreach {name value} {icons 0 text 1 both 2 both_horiz 3} {
+    assert "$name, $value, $values" {[dict get $values $name] == $value}
+  }
+}
+
+test "symbol name via meta info is correct" {
+  assert {[dict get [gitcl::meta info Gtk main] symbol] == "gtk_main"}
+}
+
 test "some symbols in Gtk are deprecated" {
   set depr {}
   foreach name [gitcl::meta info Gtk] {
@@ -86,6 +105,7 @@ test "some symbols in Gtk are deprecated" {
   }
   assert "$depr" {[dict get $depr 0] > 0 && [dict get $depr 1] > 0}
 }
+
 test "enums are registered and readable" {
   assert {"::gitcl::Gtk::ToolbarStyle" in [namespace children ::gitcl::Gtk]}
   assert {$::gitcl::Gtk::ToolbarStyle::both == 2}

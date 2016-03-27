@@ -15,7 +15,7 @@ static Tcl_Obj *str_name, *str_invalid, *str_function, *str_callback,
 	       *str_interface, *str_constant, *str_union, *str_value,
 	       *str_signal, *str_vfunc, *str_property, *str_field, *str_arg,
 	       *str_type, *str_unresolved, *str_attributes, *str_container,
-	       *str_deprecated, *bool_true, *bool_false;
+	       *str_deprecated, *str_values, *str_symbol, *bool_true, *bool_false;
 
 static int require_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj * const argv[]) {
   if (argc != 2 && argc != 3) {
@@ -51,6 +51,8 @@ static int require_cmd(void * privdata, Tcl_Interp * interp, int argc, Tcl_Obj *
       GIBaseInfo * info = g_irepository_get_info(NULL, namespace, i);
       if (GI_IS_ENUM_INFO(info)) {
 	gitcl_enum_register(interp, full_namespace, (GIEnumInfo*)info);
+//      if (GI_IS_FUNCTION_INFO(info)) {
+//	gitcl_function_register(interp, full_namespace, (GIFunctionInfo*)info);
 #ifdef DEBUG
       } else {
 	fprintf(stderr, "warning: info specialization for %s unsupported\n",
@@ -155,6 +157,26 @@ static Tcl_Obj * get_metainfo(Tcl_Interp * interp, GIBaseInfo * info) {
   // deprecated:
   if (g_base_info_is_deprecated(info)) {
     Tcl_DictObjPut(interp, res, str_deprecated, bool_true);
+  }
+  // GIEnumInfo specifics:
+  if (GI_IS_ENUM_INFO(info)) {
+    Tcl_Obj * valuesdict = Tcl_NewDictObj();
+    GIEnumInfo * enuminfo = (GIEnumInfo*)info;
+    int n = g_enum_info_get_n_values(enuminfo);
+    for (int i = 0; i < n; i++) {
+      GIValueInfo * value = g_enum_info_get_value(enuminfo, i);
+      const char * value_name = g_base_info_get_name(value);
+      Tcl_WideInt value_num = g_value_info_get_value(value);
+      Tcl_DictObjPut(interp, valuesdict, Tcl_NewStringObj(value_name, -1),
+	  Tcl_NewWideIntObj(value_num));
+    }
+    Tcl_DictObjPut(interp, res, str_values, valuesdict);
+  }
+  // GIFunctionInfo specifics:
+  if (GI_IS_FUNCTION_INFO(info)) {
+    GIFunctionInfo * funcinfo = (GIFunctionInfo*)info;
+    Tcl_DictObjPut(interp, res, str_symbol,
+	Tcl_NewStringObj(g_function_info_get_symbol(funcinfo), -1));
   }
   return res;
 }
@@ -262,6 +284,8 @@ int Gitcl_Init(Tcl_Interp * interp) {
   INIT_TCL_STRING(attributes);
   INIT_TCL_STRING(container);
   INIT_TCL_STRING(deprecated);
+  INIT_TCL_STRING(values);
+  INIT_TCL_STRING(symbol);
   Tcl_IncrRefCount(bool_true = Tcl_NewBooleanObj(1));
   Tcl_IncrRefCount(bool_false = Tcl_NewBooleanObj(0));
   require_cmd_ref = Tcl_CreateObjCommand(interp, "::gitcl::require", &require_cmd, NULL, NULL);
